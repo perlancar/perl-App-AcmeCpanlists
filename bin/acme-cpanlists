@@ -1,0 +1,60 @@
+#!perl
+
+# DATE
+# VERSION
+
+use 5.010001;
+use strict;
+use warnings;
+
+use Perinci::CmdLine::Any;
+
+my $prefix = '/App/AcmeCpanlists/';
+
+Perinci::CmdLine::Any->new(
+    url => $prefix,
+    subcommands => {
+        'ls-mods' => {url=>"${prefix}list_mods"},
+        'ls'      => {url=>"${prefix}list_lists"},
+        'get'     => {url=>"${prefix}get_list"},
+    },
+)->run;
+
+# ABSTRACT: The Acme::CPANLists CLI
+# PODNAME:
+
+=head1 SYNOPSIS
+
+List all installed Acme::CPANLists modules:
+
+ % acme-cpanlists ls-mods
+
+List all lists from all installed modules:
+
+ % acme-cpanlists ls
+ % acme-cpanlists ls -l
+
+List all lists from a module (in this case, L<Acme::CPANLists::PERLANCAR>):
+
+ % acme-cpanlists -m PERLANCAR ls
+
+Only list all author lists:
+
+ % acme-cpanlists -m PERLANCAR -t author ls
+ % acme-cpanlists -m PERLANCAR -t a ls
+
+Only list all module lists:
+
+ % acme-cpanlists -m PERLANCAR -t module ls
+ % acme-cpanlists -m PERLANCAR -t m ls
+
+Get the contents of a list:
+
+ % acme-cpanlists -m PERLANCAR get "Modules I'm avoiding"
+
+
+=head1 SEE ALSO
+
+L<Acme::CPANLists>
+
+C<Acme::CPANLists::*> modules
