@@ -1,5 +1,11 @@
 Revision history for App-AcmeCpanlists
 
+0.03    2015-10-22 (PERLANCAR)
+
+	- ls: Add --mentions-author & --mentions-module, add result column
+	  mentioned_authors_or_modules.
+
+
 0.02    2015-10-22 (PERLANCAR)
 
 	- No functional changes.
