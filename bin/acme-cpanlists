@@ -36,21 +36,21 @@ List all lists from all installed modules:
 
 List all lists from a module (in this case, L<Acme::CPANLists::PERLANCAR>):
 
- % acme-cpanlists -m PERLANCAR ls
+ % acme-cpanlists ls -m PERLANCAR
 
 Only list all author lists:
 
- % acme-cpanlists -m PERLANCAR -t author ls
- % acme-cpanlists -m PERLANCAR -t a ls
+ % acme-cpanlists ls -m PERLANCAR -t author
+ % acme-cpanlists ls -m PERLANCAR -t a
 
 Only list all module lists:
 
- % acme-cpanlists -m PERLANCAR -t module ls
- % acme-cpanlists -m PERLANCAR -t m ls
+ % acme-cpanlists ls -m PERLANCAR -t module
+ % acme-cpanlists ls -m PERLANCAR -t m
 
 Get the contents of a list:
 
- % acme-cpanlists -m PERLANCAR get "Modules I'm avoiding"
+ % acme-cpanlists get -m PERLANCAR "Modules I'm avoiding"
 
 
 =head1 SEE ALSO
