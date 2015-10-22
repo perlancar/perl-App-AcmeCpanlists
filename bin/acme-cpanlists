@@ -52,6 +52,14 @@ Get the contents of a list:
 
  % acme-cpanlists get -m PERLANCAR "Modules I'm avoiding"
 
+Find lists that mention a module:
+
+ % acme-cpanlists ls --mentions-module Foo::Bar
+
+Find lists that mention an author:
+
+ % acme-cpanlists ls --mentions-author PERLANCAR
+
 
 =head1 SEE ALSO
 
