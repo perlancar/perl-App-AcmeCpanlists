@@ -233,6 +233,6 @@ sub get_list {
 1;
 #ABSTRACT:
 
-=head1 SEE ALSO
+=head1 SYNOPSIS
 
 Use the included script L<acme-cpanlists>.

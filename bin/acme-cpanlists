@@ -25,6 +25,8 @@ Perinci::CmdLine::Any->new(
 
 =head1 SYNOPSIS
 
+Install some C<Acme::CPANLists::> modules and then ...
+
 List all installed Acme::CPANLists modules:
 
  % acme-cpanlists ls-mods
