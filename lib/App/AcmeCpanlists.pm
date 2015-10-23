@@ -135,8 +135,10 @@ sub list_lists {
                 };
 
                 my %mentioned;
-                for (@$entries) {
-                    $mentioned{$_->{author}}++;
+                for my $ent (@$entries) {
+                    $mentioned{$ent->{author}}++;
+                    $mentioned{$_}++ for @{ $ent->{related_authors} // [] };
+                    $mentioned{$_}++ for @{ $ent->{alternate_authors} // [] };
                 }
                 $rec->{mentioned_authors_or_modules} = join(", ", sort keys %mentioned);
 
@@ -162,9 +164,10 @@ sub list_lists {
                 };
 
                 my %mentioned;
-                for (@$entries) {
-                    $mentioned{$_->{module}}++;
-                    $mentioned{$_->{alternate_module}}++ if defined($_->{alternate_module});
+                for my $ent (@$entries) {
+                    $mentioned{$ent->{module}}++;
+                    $mentioned{$_}++ for @{ $ent->{related_modules} // [] };
+                    $mentioned{$_}++ for @{ $ent->{alternate_modules} // [] };
                 }
                 $rec->{mentioned_authors_or_modules} = join(", ", sort keys %mentioned);
 
