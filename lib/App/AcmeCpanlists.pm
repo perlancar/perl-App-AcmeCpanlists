@@ -24,14 +24,22 @@ sub _complete_module {
     );
 }
 
-sub _complete_summary {
+sub _complete_summary_or_id {
     require Complete::Util;
     my %args = @_;
 
-    my $res = list_lists();
-    my $array = $res->[0] == 200 ? $res->[2] : [];
+    my $res = list_lists(detail=>1);
+    my $array;
+    if ($res->[0] == 200) {
+        for (@{ $res->[2] }) {
+            push @$array, $_->{id} if $_->{id};
+            push @$array, $_->{summary};
+        }
+    } else {
+        $array = [];
+    }
 
-    Complete::Util::complete_array(
+    Complete::Util::complete_array_elem(
         %args,
         array => $array,
     );
@@ -68,6 +76,15 @@ my %arg_detail = (
         name => 'Return detailed records instead of just name/ID',
         schema => 'bool',
         cmdline_aliases => {l=>{}},
+    },
+);
+
+my %arg_query = (
+    query => {
+        schema => 'str*',
+        req => 1,
+        pos => 0,
+        completion => \&_complete_summary_or_id,
     },
 );
 
@@ -210,11 +227,7 @@ $SPEC{get_list} = {
     },
     args => {
         %args_filtering,
-        query => {
-            schema => 'str*',
-            req => 1,
-            pos => 0,
-        },
+        %arg_query,
     },
 };
 sub get_list {
@@ -258,11 +271,7 @@ $SPEC{view_list} = {
     },
     args => {
         %args_filtering,
-        query => {
-            schema => 'str*',
-            req => 1,
-            pos => 0,
-        },
+        %arg_query,
     },
 };
 sub view_list {
