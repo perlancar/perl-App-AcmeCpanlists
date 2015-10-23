@@ -24,6 +24,19 @@ sub _complete_module {
     );
 }
 
+sub _complete_summary {
+    require Complete::Util;
+    my %args = @_;
+
+    my $res = list_lists();
+    my $array = $res->[0] == 200 ? $res->[2] : [];
+
+    Complete::Util::complete_array(
+        %args,
+        array => $array,
+    );
+}
+
 my %rels_filtering = (
     choose_one => [qw/mentions_author mentions_module/],
 );
@@ -117,9 +130,9 @@ sub list_lists {
 
     my @cols;
     if ($detail) {
-        @cols = (qw/name type summary num_entries mentioned_authors_or_modules/);
+        @cols = (qw/id type summary num_entries mentioned_authors_or_modules/);
     } else {
-        @cols = (qw/name/);
+        @cols = (qw/summary/);
     }
 
     my @rows;
@@ -129,6 +142,7 @@ sub list_lists {
                 my $entries = $l->{entries} // [];
                 my $rec = {
                     type => 'author',
+                    id => $l->{id},
                     module => $mod,
                     summary => $l->{summary},
                     num_entries => ~~@$entries,
@@ -158,6 +172,7 @@ sub list_lists {
                 my $entries = $l->{entries} // [];
                 my $rec = {
                     type => 'module',
+                    id => $l->{id},
                     module => $mod,
                     summary => $l->{summary},
                     num_entries => ~~@$entries,
@@ -189,16 +204,12 @@ sub list_lists {
 
 $SPEC{get_list} = {
     v => 1.1,
-    summary => 'Get a CPAN list',
+    summary => 'Get a CPAN list as raw data',
     args_rels => {
         %rels_filtering,
     },
     args => {
         %args_filtering,
-        %arg_detail,
-        all => {
-            schema => 'bool',
-        },
         query => {
             schema => 'str*',
             req => 1,
@@ -219,18 +230,64 @@ sub get_list {
     );
 
     my @rows;
+    my $type;
     for my $row (@{ $res->[2] }) {
-        if ($row->{summary} eq $args{query}) {
+        if (index(lc($row->{summary}), lc($args{query})) >= 0 ||
+                (defined($row->{id}) &&
+                         index(lc($row->{id}), lc($args{query})) >= 0)) {
             my $rec = $row->{_ref};
-            if ($args{all}) {
-                push @rows, $rec;
-            } else {
-                return [200, "OK", $rec];
-            }
+            $type = $row->{type};
+            push @rows, $rec;
         }
     }
 
-    [200, "OK", \@rows];
+    if (!@rows) {
+        return [404, "No such list"];
+    } elsif (@rows > 1) {
+        return [300, "Multiple lists found (".~~@rows."), please specify"];
+    } else {
+        [200, "OK", $rows[0], {'func.type'=>$type}];
+    }
+}
+
+$SPEC{view_list} = {
+    v => 1.1,
+    summary => 'View a CPAN list as rendered POD',
+    args_rels => {
+        %rels_filtering,
+    },
+    args => {
+        %args_filtering,
+        query => {
+            schema => 'str*',
+            req => 1,
+            pos => 0,
+        },
+    },
+};
+sub view_list {
+    require Pod::From::Acme::CPANLists;
+    no strict 'refs';
+
+    my %args = @_;
+
+    my $res = get_list(%args);
+    return $res unless $res->[0] == 200;
+
+    my %podargs;
+    if ($res->[3]{'func.type'} eq 'author') {
+        $podargs{author_lists} = [$res->[2]];
+        $podargs{module_lists} = [];
+    } else {
+        $podargs{author_lists} = [];
+        $podargs{module_lists} = [$res->[2]];
+    }
+    my $podres = Pod::From::Acme::CPANLists::gen_pod_from_acme_cpanlists(
+        %podargs);
+
+    [200, "OK", $podres, {
+        "cmdline.page_result"=>1,
+        "cmdline.pager"=>"pod2man | man -l -"}];
 }
 
 1;

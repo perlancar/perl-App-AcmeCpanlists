@@ -17,6 +17,7 @@ Perinci::CmdLine::Any->new(
         'ls-mods' => {url=>"${prefix}list_mods"},
         'ls'      => {url=>"${prefix}list_lists"},
         'get'     => {url=>"${prefix}get_list"},
+        'view'    => {url=>"${prefix}view_list"},
     },
 )->run;
 
@@ -50,7 +51,11 @@ Only list all module lists:
  % acme-cpanlists ls -m PERLANCAR -t module
  % acme-cpanlists ls -m PERLANCAR -t m
 
-Get the contents of a list:
+View the list as rendered POD:
+
+ % acme-cpanlists view -m PERLANCAR "Modules I'm avoiding"
+
+Get the list (raw):
 
  % acme-cpanlists get -m PERLANCAR "Modules I'm avoiding"
 
