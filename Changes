@@ -1,5 +1,14 @@
 Revision history for App-AcmeCpanlists
 
+0.04    2015-10-23 (PERLANCAR)
+
+        - Add subcommand: view.
+
+        - [ux] get/view: Allow substring & case-insensitive matching.
+
+        - [ux] get/view: Activate summary/ID completion.
+
+
 0.03    2015-10-22 (PERLANCAR)
 
 	- ls: Add --mentions-author & --mentions-module, add result column
