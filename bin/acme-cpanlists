@@ -14,10 +14,11 @@ my $prefix = '/App/AcmeCpanlists/';
 Perinci::CmdLine::Any->new(
     url => $prefix,
     subcommands => {
-        'ls-mods' => {url=>"${prefix}list_mods"},
-        'ls'      => {url=>"${prefix}list_lists"},
-        'get'     => {url=>"${prefix}get_list"},
-        'view'    => {url=>"${prefix}view_list"},
+        'ls-mods'    => {url=>"${prefix}list_mods"},
+        'ls'         => {url=>"${prefix}list_lists"},
+        'get'        => {url=>"${prefix}get_list"},
+        'view'       => {url=>"${prefix}view_list"},
+        'ls-entries' => {url=>"${prefix}list_entries"},
     },
 )->run;
 
@@ -66,6 +67,16 @@ Find lists that mention a module:
 Find lists that mention an author:
 
  % acme-cpanlists ls --mentions-author PERLANCAR
+
+List entries of a list:
+
+ % acme-cpanlists ls-entries "PERLANCAR's favorite apps"
+ App::lcpan
+ App::pause
+ App::SetScreensaverTimeout
+
+ # Install all entries of a module list
+ % acme-cpanlists ls-entries "PERLANCAR's favorite apps" | cpanm -n
 
 
 =head1 SEE ALSO

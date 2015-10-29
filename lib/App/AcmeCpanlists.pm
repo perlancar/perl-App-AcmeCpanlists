@@ -299,6 +299,95 @@ sub view_list {
         "cmdline.pager"=>"pod2man | man -l -"}];
 }
 
+sub _is_false { defined($_[0]) && !$_[0] }
+
+$SPEC{list_entries} = {
+    v => 1.1,
+    summary => 'List entries of a CPAN list',
+    args_rels => {
+        %rels_filtering,
+    },
+    args => {
+        %args_filtering,
+        %arg_query,
+        %arg_detail,
+        related => {
+            summary => 'Filter based on whether entry is in related',
+            'summary.alt.bool.yes' => 'Only list related entries',
+            'summary.alt.bool.not' => 'Do not list related entries',
+            schema => 'bool',
+        },
+        alternate => {
+            summary => 'Filter based on whether entry is in alternate',
+            'summary.alt.bool.yes' => 'Only list alternate entries',
+            'summary.alt.bool.not' => 'Do not list alternate entries',
+            schema => 'bool',
+        },
+    },
+};
+sub list_entries {
+    require Pod::From::Acme::CPANLists;
+    no strict 'refs';
+
+    my %args = @_;
+
+    my $res = get_list(%args);
+    return $res unless $res->[0] == 200;
+
+    my $type = $res->[3]{'func.type'};
+    my $list = $res->[2];
+
+    my @cols;
+    if ($args{detail}) {
+        @cols = ($type, qw/summary rating/);
+    } else {
+        @cols = ($type);
+    }
+
+    my %seen;
+    my @rows;
+    for my $e (@{ $list->{entries} }) {
+        my $n = $e->{$type};
+        unless ($args{related} || $args{alternate}) {
+            unless ($seen{$n}++) {
+                push @rows, {
+                    $type => $n,
+                    summary=>$e->{summary},
+                    rating=>$e->{rating},
+                };
+            }
+        }
+        for my $n (@{ $e->{"related_${type}s"} // [] }) {
+            if ($args{related}) {
+                unless ($seen{$n}++) {
+                    push @rows, {
+                        $type => $n,
+                        summary=>$e->{summary},
+                        related=>1,
+                    };
+                }
+            }
+        }
+        for my $n (@{ $e->{"alternate_${type}s"} // [] }) {
+            if ($args{alternate}) {
+                unless ($seen{$n}++) {
+                    push @rows, {
+                        $type => $n,
+                        summary=>$e->{summary},
+                        alternate=>1,
+                    };
+                }
+            }
+        }
+    }
+
+    unless ($args{detail}) {
+        @rows = map {$_->{$type}} @rows;
+    }
+
+    [200, "OK", \@rows, {'table.fields' => \@cols}];
+}
+
 1;
 #ABSTRACT:
 
