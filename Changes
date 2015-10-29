@@ -1,5 +1,10 @@
 Revision history for App-AcmeCpanlists
 
+0.05    2015-10-29 (PERLANCAR)
+
+	- Add subcommand: ls-entries.
+
+
 0.04    2015-10-23 (PERLANCAR)
 
         - Add subcommand: view.
