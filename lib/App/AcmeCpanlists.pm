@@ -99,7 +99,7 @@ sub list_mods {
     require PERLANCAR::Module::List;
 
     my $res = PERLANCAR::Module::List::list_modules(
-        'Acme::CPANLists::', {list_modules=>1});
+        'Acme::CPANLists::', {list_modules=>1, recurse=>1});
 
     my @res;
     for (sort keys %$res) {
