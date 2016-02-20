@@ -1,5 +1,10 @@
 Revision history for App-AcmeCpanlists
 
+0.06    2016-02-20 (PERLANCAR)
+
+	- Recurse when listing Acme::CPANLists::* modules.
+
+
 0.05    2015-10-29 (PERLANCAR)
 
 	- Add subcommand: ls-entries.
