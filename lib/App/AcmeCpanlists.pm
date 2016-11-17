@@ -71,6 +71,21 @@ my %args_filtering = (
     },
 );
 
+my %args_related_and_alternate = (
+    related => {
+        summary => 'Filter based on whether entry is in related',
+        'summary.alt.bool.yes' => 'Only list related entries',
+        'summary.alt.bool.not' => 'Do not list related entries',
+        schema => 'bool',
+    },
+    alternate => {
+        summary => 'Filter based on whether entry is in alternate',
+        'summary.alt.bool.yes' => 'Only list alternate entries',
+        'summary.alt.bool.not' => 'Do not list alternate entries',
+        schema => 'bool',
+    },
+);
+
 my %arg_detail = (
     detail => {
         name => 'Return detailed records instead of just name/ID',
@@ -83,6 +98,14 @@ my %arg_query = (
     query => {
         schema => 'str*',
         req => 1,
+        pos => 0,
+        completion => \&_complete_summary_or_id,
+    },
+);
+
+my %arg_query_opt = (
+    query => {
+        schema => 'str*',
         pos => 0,
         completion => \&_complete_summary_or_id,
     },
@@ -118,6 +141,7 @@ $SPEC{list_lists} = {
     },
     args => {
         %args_filtering,
+        %arg_query_opt,
         %arg_detail,
     },
 };
@@ -131,6 +155,8 @@ sub list_lists {
 
     $type = 'a' if $args{mentions_author};
     $type = 'm' if $args{mentions_module};
+
+    $detail = 1 if defined $args{query};
 
     my @mods;
     if ($args{module}) {
@@ -216,7 +242,38 @@ sub list_lists {
         }
     }
 
-    [200, "OK", \@rows, {'table.fields'=>\@cols}];
+    my $resmeta = {
+        'table.fields' => \@cols,
+    };
+
+    # filter by query
+    if (defined(my $q = $args{query})) {
+        $q = lc($q);
+
+        my @match_rows;
+        my @exact_match_rows;
+        my $type;
+        for my $row (@rows) {
+            my $summary = lc($row->{summary} // '');
+            if (index($summary, $q) >= 0 ||
+                (defined($row->{id}) && index(lc($row->{id}), $q) >= 0)) {
+                my $rec = $row->{_ref};
+                push @match_rows, $row;
+                push @exact_match_rows, $row
+                    if $summary eq $q ||
+                        defined($row->{id}) && lc($row->{id}) eq $q;
+            }
+        }
+        @rows = @match_rows;
+        $resmeta->{'func.num_exact_matches'} = @exact_match_rows;
+    }
+
+    # remove detail if we forced detail earlier for matching against query
+    if (!$args{detail} && $detail) {
+        @rows = map { $_->{summary} } @rows;
+    }
+
+    [200, "OK", \@rows, $resmeta];
 }
 
 $SPEC{get_list} = {
@@ -238,34 +295,22 @@ sub get_list {
     my $res = list_lists(
         (map {(module=>$args{$_}) x !!defined($args{$_})}
              keys %args_filtering),
+        query => $args{query},
         detail => 1,
         _with_ref => 1,
     );
 
-    my @rows;
-    my @exact_match_rows;
-    my $type;
-    for my $row (@{ $res->[2] }) {
-        if (index(lc($row->{summary}), lc($args{query})) >= 0 ||
-                (defined($row->{id}) &&
-                         index(lc($row->{id}), lc($args{query})) >= 0)) {
-            my $rec = $row->{_ref};
-            $type = $row->{type};
-            push @rows, $rec;
-            push @exact_match_rows, $rec
-                if lc($row->{summary}) eq lc($args{query}) ||
-                    defined($row->{id}) && lc($row->{id}) eq lc($args{query});
-        }
-    }
+    return $res unless $res->[0] == 200;
 
-    if (!@rows) {
+    my $rows = $res->[2];
+    if (!@$rows) {
         return [404, "No such list"];
-    } elsif (@exact_match_rows == 1) {
-        return [200, "OK", $exact_match_rows[0], {'func.type'=>$type}];
-    } elsif (@rows > 1) {
-        return [300, "Multiple lists found (".~~@rows."), please specify"];
+    } elsif ($res->[3]{'func.num_exact_matches'} == 1) {
+        return [200, "OK", $rows->[0]{_ref}, {'func.type'=>$rows->[0]{type}}];
+    } elsif (@$rows > 1) {
+        return [300, "Multiple lists found (".~~@{$rows}."), please specify"];
     } else {
-        return [200, "OK", $rows[0], {'func.type'=>$type}];
+        return [200, "OK", $rows->[0]{_ref}, {'func.type'=>$rows->[0]{type}}];
     }
 }
 
@@ -307,6 +352,147 @@ sub view_list {
 
 sub _is_false { defined($_[0]) && !$_[0] }
 
+$SPEC{list_entries_all} = {
+    v => 1.1,
+    summary => 'List entries from all installed CPAN lists',
+    args_rels => {
+        %rels_filtering,
+    },
+    args => {
+        %args_filtering,
+        %arg_query_opt,
+        %arg_detail,
+        %args_related_and_alternate,
+    },
+};
+sub list_entries_all {
+    no strict 'refs';
+
+    my %args = @_;
+
+    my $is_single_list_mode = $args{_mode} && $args{_mode} eq 'single_list';
+
+    my $res;
+    my $lists;
+    my $entity_field = $args{type};
+
+    if ($is_single_list_mode) {
+        $res = get_list(%args);
+        return $res unless $res->[0] == 200;
+        $lists = [{_ref=>$res->[2], type=>$res->[3]{'func.type'}}];
+        $entity_field //= $res->[3]{'func.type'};
+    } else {
+        # we use query to filter against entity name, not list name
+        delete local $args{query};
+
+        $res = list_lists(%args, detail=>1, _with_ref=>1);
+        return $res unless $res->[0] == 200;
+        $lists = $res->[2];
+    }
+    $entity_field //= 'module_or_author';
+
+    my @cols;
+    if ($args{detail}) {
+        push @cols, $entity_field;
+        if ($is_single_list_mode) {
+            push @cols, qw/summary rating/;
+        } else {
+            push @cols, qw/num_occurrences avg_rating/;
+        }
+    } else {
+        @cols = ($entity_field);
+    }
+
+    my %seen;
+    my @rows;
+    for my $list (@$lists) {
+        my $type = $list->{type};
+        for my $e (@{ $list->{_ref}{entries} }) {
+            my $n = $e->{$type};
+            unless ($args{related} || $args{alternate}) {
+                unless ($seen{$n}++ && $is_single_list_mode) {
+                    push @rows, {
+                        $entity_field => $n,
+                        summary=>$e->{summary},
+                        rating=>$e->{rating},
+                    };
+                }
+            }
+            for my $n (@{ $e->{"related_${type}s"} // [] }) {
+                if ($args{related}) {
+                    unless ($seen{$n}++ && $is_single_list_mode) {
+                        push @rows, {
+                            $entity_field => $n,
+                            summary=>$e->{summary},
+                            related=>1,
+                        };
+                    }
+                }
+            }
+            for my $n (@{ $e->{"alternate_${type}s"} // [] }) {
+                if ($args{alternate} && $is_single_list_mode) {
+                    unless ($seen{$n}++) {
+                        push @rows, {
+                            $entity_field => $n,
+                            summary=>$e->{summary},
+                            alternate=>1,
+                        };
+                    }
+                }
+            }
+        } # for each entry
+
+    } # for each list
+
+    # filter by query
+    {
+        last if $is_single_list_mode;
+        last unless defined(my $q = $args{query});
+        $q = lc($q);
+
+        my @filtered_rows;
+        for my $row (@rows) {
+            next unless index(lc($row->{$entity_field}), $q) >= 0;
+            push @filtered_rows, $row;
+        }
+
+        @rows = @filtered_rows;
+    }
+
+    # group by entity
+    unless ($is_single_list_mode) {
+        my %occurrences; # key: entity name, value: n
+        my %ratings;    # key: entity name, value = [rating, ...]
+        for my $row (@rows) {
+            my $name = $row->{$entity_field};
+            $occurrences{$name}++;
+            push @{ $ratings{$name} }, $row->{rating} if defined $row->{rating};
+        }
+
+        my @new_rows;
+        for my $name (sort keys %occurrences) {
+            my $row = {
+                $entity_field => $name,
+                num_occurrences => $occurrences{$name},
+                avg_rating => undef,
+            };
+            if ($ratings{$name}) {
+                my $sum = 0;
+                for (@{ $ratings{$name} }) { $sum += $_ }
+                $row->{avg_rating} = $sum/@{ $ratings{$name} };
+            }
+            push @new_rows, $row;
+        }
+        @rows = @new_rows;
+    }
+
+    unless ($args{detail}) {
+        @rows = map {$_->{$entity_field}} @rows;
+    }
+
+    [200, "OK", \@rows, {'table.fields' => \@cols}];
+}
+
 $SPEC{list_entries} = {
     v => 1.1,
     summary => 'List entries of a CPAN list',
@@ -317,81 +503,11 @@ $SPEC{list_entries} = {
         %args_filtering,
         %arg_query,
         %arg_detail,
-        related => {
-            summary => 'Filter based on whether entry is in related',
-            'summary.alt.bool.yes' => 'Only list related entries',
-            'summary.alt.bool.not' => 'Do not list related entries',
-            schema => 'bool',
-        },
-        alternate => {
-            summary => 'Filter based on whether entry is in alternate',
-            'summary.alt.bool.yes' => 'Only list alternate entries',
-            'summary.alt.bool.not' => 'Do not list alternate entries',
-            schema => 'bool',
-        },
+        %args_related_and_alternate,
     },
 };
 sub list_entries {
-    require Pod::From::Acme::CPANLists;
-    no strict 'refs';
-
-    my %args = @_;
-
-    my $res = get_list(%args);
-    return $res unless $res->[0] == 200;
-
-    my $type = $res->[3]{'func.type'};
-    my $list = $res->[2];
-
-    my @cols;
-    if ($args{detail}) {
-        @cols = ($type, qw/summary rating/);
-    } else {
-        @cols = ($type);
-    }
-
-    my %seen;
-    my @rows;
-    for my $e (@{ $list->{entries} }) {
-        my $n = $e->{$type};
-        unless ($args{related} || $args{alternate}) {
-            unless ($seen{$n}++) {
-                push @rows, {
-                    $type => $n,
-                    summary=>$e->{summary},
-                    rating=>$e->{rating},
-                };
-            }
-        }
-        for my $n (@{ $e->{"related_${type}s"} // [] }) {
-            if ($args{related}) {
-                unless ($seen{$n}++) {
-                    push @rows, {
-                        $type => $n,
-                        summary=>$e->{summary},
-                        related=>1,
-                    };
-                }
-            }
-        }
-        for my $n (@{ $e->{"alternate_${type}s"} // [] }) {
-            if ($args{alternate}) {
-                unless ($seen{$n}++) {
-                    push @rows, {
-                        $type => $n,
-                        summary=>$e->{summary},
-                        alternate=>1,
-                    };
-                }
-            }
-        }
-    }
-
-    unless ($args{detail}) {
-        @rows = map {$_->{$type}} @rows;
-    }
-
-    [200, "OK", \@rows, {'table.fields' => \@cols}];
+    list_entries_all(@_, _mode=>'single_list');
 }
 
 1;

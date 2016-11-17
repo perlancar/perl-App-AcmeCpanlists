@@ -18,7 +18,8 @@ Perinci::CmdLine::Any->new(
         'ls'         => {url=>"${prefix}list_lists"},
         'get'        => {url=>"${prefix}get_list"},
         'view'       => {url=>"${prefix}view_list"},
-        'ls-entries' => {url=>"${prefix}list_entries"},
+        'ls-entries'     => {url=>"${prefix}list_entries"},
+        'ls-entries-all' => {url=>"${prefix}list_entries_all"},
     },
 )->run;
 
@@ -75,8 +76,13 @@ List entries of a list:
  App::pause
  App::SetScreensaverTimeout
 
- # Install all entries of a module list
+Install all entries of a module list:
+
  % acme-cpanlists ls-entries "PERLANCAR's favorite apps" | cpanm -n
+
+List entries from all lists:
+
+ % acme-cpanlists ls-entries-all -l
 
 
 =head1 SEE ALSO
