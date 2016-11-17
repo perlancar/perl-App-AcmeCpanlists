@@ -1,5 +1,13 @@
 Revision history for App-AcmeCpanlists
 
+0.07    2016-11-17 (PERLANCAR)
+
+	- Add subcommand: ls-entries-all.
+
+	- [Bugfix] When query matches list name exactly but also matches
+	  the prefix of other lists, don't regard that as a multiple match.
+
+
 0.06    2016-02-20 (PERLANCAR)
 
 	- Recurse when listing Acme::CPANLists::* modules.
