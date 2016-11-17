@@ -253,7 +253,8 @@ sub get_list {
             $type = $row->{type};
             push @rows, $rec;
             push @exact_match_rows, $rec
-                if lc($row->{summary}) eq lc($args{query});
+                if lc($row->{summary}) eq lc($args{query}) ||
+                    defined($row->{id}) && lc($row->{id}) eq lc($args{query});
         }
     }
 
