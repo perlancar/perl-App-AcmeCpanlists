@@ -370,7 +370,8 @@ sub list_entries_all {
 
     my %args = @_;
 
-    my $is_single_list_mode = $args{_mode} && $args{_mode} eq 'single_list';
+    my $mode = $args{_mode} // '';
+    my $is_single_list_mode = $mode eq 'single_list';
 
     my $res;
     my $lists;
@@ -392,7 +393,9 @@ sub list_entries_all {
     $entity_field //= 'module_or_author';
 
     my @cols;
-    if ($args{detail}) {
+    if ($mode eq 'entry_lists') {
+        @cols = ('type', 'summary');
+    } elsif ($args{detail}) {
         push @cols, $entity_field;
         if ($is_single_list_mode) {
             push @cols, qw/summary rating/;
@@ -415,6 +418,7 @@ sub list_entries_all {
                         $entity_field => $n,
                         summary=>$e->{summary},
                         rating=>$e->{rating},
+                        (_list_ref => $list) x !!($mode eq 'entry_lists'),
                     };
                 }
             }
@@ -425,17 +429,19 @@ sub list_entries_all {
                             $entity_field => $n,
                             summary=>$e->{summary},
                             related=>1,
+                            (_list_ref => $list) x !!($mode eq 'entry_lists'),
                         };
                     }
                 }
             }
             for my $n (@{ $e->{"alternate_${type}s"} // [] }) {
                 if ($args{alternate} && $is_single_list_mode) {
-                    unless ($seen{$n}++) {
+                    unless ($seen{$n}++ && $is_single_list_mode) {
                         push @rows, {
                             $entity_field => $n,
                             summary=>$e->{summary},
                             alternate=>1,
+                            (_list_ref => $list) x !!($mode eq 'entry_lists'),
                         };
                     }
                 }
@@ -452,15 +458,36 @@ sub list_entries_all {
 
         my @filtered_rows;
         for my $row (@rows) {
-            next unless index(lc($row->{$entity_field}), $q) >= 0;
+            if ($args{query_type} && $args{query_type} eq 'exact-name') {
+                next unless lc($row->{$entity_field}) eq $q;
+            } else {
+                next unless index(lc($row->{$entity_field}), $q) >= 0;
+            }
             push @filtered_rows, $row;
         }
 
         @rows = @filtered_rows;
     }
 
+    # return entry lists
+    if ($mode eq 'entry_lists') {
+        no warnings 'uninitialized';
+        my @new_rows;
+        my %seen;
+        for my $row (@rows) {
+            my $list = $row->{_list_ref};
+            next if $seen{"$list->{type}|$list->{summary}"}++;
+            push @new_rows, {
+                type => $list->{type},
+                summary => $list->{summary},
+            };
+        }
+        @rows = @new_rows;
+        $args{detail} = 1; # TMP
+    }
+
     # group by entity
-    unless ($is_single_list_mode) {
+    if ($mode eq '') {
         my %occurrences; # key: entity name, value: n
         my %ratings;    # key: entity name, value = [rating, ...]
         for my $row (@rows) {
@@ -508,6 +535,26 @@ $SPEC{list_entries} = {
 };
 sub list_entries {
     list_entries_all(@_, _mode=>'single_list');
+}
+
+$SPEC{list_entry_lists} = {
+    v => 1.1,
+    summary => 'Find out in which lists a module or author is mentioned',
+    args_rels => {
+        %rels_filtering,
+    },
+    args => {
+        %args_filtering,
+        %arg_query,
+        %args_related_and_alternate,
+    },
+};
+sub list_entry_lists {
+    list_entries_all(
+        @_,
+        query_type => 'exact-name',
+        _mode => 'entry_lists',
+    );
 }
 
 1;

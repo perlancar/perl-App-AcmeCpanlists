@@ -20,6 +20,7 @@ Perinci::CmdLine::Any->new(
         'view'       => {url=>"${prefix}view_list"},
         'ls-entries'     => {url=>"${prefix}list_entries"},
         'ls-entries-all' => {url=>"${prefix}list_entries_all"},
+        'ls-entry-lists' => {url=>"${prefix}list_entry_lists"},
     },
 )->run;
 
@@ -83,6 +84,10 @@ Install all entries of a module list:
 List entries from all lists:
 
  % acme-cpanlists ls-entries-all -l
+
+Find out in which lists a module or author is mentioned:
+
+ % acme-cpanlists ls-entry-lists File::Slurper
 
 
 =head1 SEE ALSO
