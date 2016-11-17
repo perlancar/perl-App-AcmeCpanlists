@@ -243,6 +243,7 @@ sub get_list {
     );
 
     my @rows;
+    my @exact_match_rows;
     my $type;
     for my $row (@{ $res->[2] }) {
         if (index(lc($row->{summary}), lc($args{query})) >= 0 ||
@@ -251,15 +252,19 @@ sub get_list {
             my $rec = $row->{_ref};
             $type = $row->{type};
             push @rows, $rec;
+            push @exact_match_rows, $rec
+                if lc($row->{summary}) eq lc($args{query});
         }
     }
 
     if (!@rows) {
         return [404, "No such list"];
+    } elsif (@exact_match_rows == 1) {
+        return [200, "OK", $exact_match_rows[0], {'func.type'=>$type}];
     } elsif (@rows > 1) {
         return [300, "Multiple lists found (".~~@rows."), please specify"];
     } else {
-        [200, "OK", $rows[0], {'func.type'=>$type}];
+        return [200, "OK", $rows[0], {'func.type'=>$type}];
     }
 }
 
