@@ -11,7 +11,7 @@ our %SPEC;
 
 $SPEC{':package'} = {
     v => 1.1,
-    summary => 'The Acme::CPANLists CLI (backend module)',
+    summary => 'The Acme::CPANLists CLI',
 };
 
 sub _complete_module {
