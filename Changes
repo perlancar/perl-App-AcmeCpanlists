@@ -1,5 +1,12 @@
 Revision history for App-AcmeCpanlists
 
+0.09    2016-11-19 (PERLANCAR)
+
+	- No functional changes.
+
+	- Tweak Abstract.
+
+
 0.08    2016-11-17 (PERLANCAR)
 
 	- Add subcommand: ls-entry-lists.
